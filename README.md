@@ -20,10 +20,10 @@ This is a Lovelace frontend component for Home Assistant that redirects the brow
 
 To use this component, add a custom card to your dashboard with the following configuration:
 
-type: custom:inactive-redirect
-timeout: 30 # in seconds
-redirect_path: /lovelace/default_view
-
+    type: custom:inactive-redirect
+    timeout: 30 # in seconds
+    redirect_path: /lovelace/default_view
+    
 **Options:**
 
 | Name          | Type    | Required | Description                                       |
