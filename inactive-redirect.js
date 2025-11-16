@@ -20,46 +20,68 @@ class InactiveRedirect extends LitElement {
       throw new Error("You need to define a redirect_path");
     }
 
-    this.timer = null;
-    this.events = ['mousemove', 'mousedown', 'touchstart', 'keydown'];
+    this.idleTimer = null;
+    this.debounceTimer = null;
+    // 'wheel' und 'scroll' zur Liste der Events hinzugefügt
+    this.events = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'wheel', 'scroll'];
 
-    this.resetTimer = this.resetTimer.bind(this);
+    this.handleActivity = this.handleActivity.bind(this);
     this.goHome = this.goHome.bind(this);
 
     this.events.forEach(event => {
-      window.addEventListener(event, this.resetTimer, true);
+      window.addEventListener(event, this.handleActivity, { passive: true });
     });
 
-    this.resetTimer();
+    this.startIdleTimer();
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this.resetTimer();
+    // Event-Listener beim Wiederverbinden neu starten
+    this.events.forEach(event => {
+      window.addEventListener(event, this.handleActivity, { passive: true });
+    });
+    this.startIdleTimer();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    // Alle Timer und Event-Listener sauber entfernen
     this.events.forEach(event => {
-      window.removeEventListener(event, this.resetTimer, true);
+      window.removeEventListener(event, this.handleActivity, true);
     });
-    clearTimeout(this.timer);
+    clearTimeout(this.idleTimer);
+    clearTimeout(this.debounceTimer);
   }
 
-  resetTimer() {
-    clearTimeout(this.timer);
-    this.timer = setTimeout(this.goHome, this.timeout * 1000);
+  handleActivity() {
+    // Den Haupt-Timeout bei jeder Aktivität sofort stoppen
+    clearTimeout(this.idleTimer);
+
+    // Debounce-Logik: Starte den Haupt-Timeout erst,
+    // nachdem für 200ms keine neue Aktivität erkannt wurde.
+    // Dies verhindert, dass der Timer bei schnellen Events wie Scrollen ständig neu erstellt wird.
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => this.startIdleTimer(), 200);
+  }
+
+  startIdleTimer() {
+    this.idleTimer = setTimeout(this.goHome, this.timeout * 1000);
   }
 
   goHome() {
-    window.history.pushState(null, null, this.redirect_path);
-    const navEvent = new CustomEvent("location-changed", {
-      detail: { replace: false },
-    });
-    window.dispatchEvent(navEvent);
+    // Prüfen, ob wir uns bereits auf der Zielseite befinden, um unnötige Navigation zu vermeiden
+    if (window.location.pathname !== this.redirect_path) {
+      window.history.pushState(null, null, this.redirect_path);
+      const navEvent = new CustomEvent("location-changed", {
+        detail: { replace: false },
+      });
+      window.dispatchEvent(navEvent);
+    }
   }
 
   render() {
+    // Diese Komponente hat keine sichtbare Oberfläche
     return html``;
   }
 
