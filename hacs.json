@@ -1,7 +1,5 @@
 {
-  "name": "Dashboard Auto-Navigation",
+  "name": "Inactive Redirect",
   "content_in_root": true,
-  "filename": "dashboard-auto-navigation.js",
-  "render_readme": true,
-  "homeassistant": "2024.1.0"
+  "filename": "inactive-redirect.js"
 }
