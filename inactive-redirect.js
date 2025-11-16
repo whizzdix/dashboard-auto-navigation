@@ -27,53 +27,68 @@ class InactiveRedirect extends LitElement {
     this.handleActivity = this.handleActivity.bind(this);
     this.goHome = this.goHome.bind(this);
     
-    // Die Event-Listener werden beim Initialisieren hinzugefügt.
     this.addListeners();
     this.startIdleTimer();
   }
   
   addListeners() {
     this.events.forEach(event => {
-      // NEU: { capture: true } fängt das Event früh ab.
-      // { passive: true } verbessert die Performance, besonders bei scroll und touch.
       window.addEventListener(event, this.handleActivity, { capture: true, passive: true });
     });
   }
   
   removeListeners() {
     this.events.forEach(event => {
-      // Wichtig: Die Optionen beim Entfernen müssen mit denen beim Hinzufügen übereinstimmen.
       window.removeEventListener(event, this.handleActivity, { capture: true, passive: true });
     });
   }
 
   connectedCallback() {
     super.connectedCallback();
-    // Sicherstellen, dass die Listener aktiv sind, wenn die Karte (wieder) ins DOM kommt.
-    this.removeListeners(); // Zuerst alte entfernen, um Duplikate zu vermeiden
+    this.removeListeners(); 
     this.addListeners();
     this.startIdleTimer();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    // Alle Timer und Event-Listener sauber entfernen, wenn die Karte das DOM verlässt.
     this.removeListeners();
     clearTimeout(this.idleTimer);
     clearTimeout(this.debounceTimer);
   }
 
   handleActivity() {
+    const urlParams = new URLSearchParams(window.location.search);
+    // NEU: Prüfen, ob der 'edit=1' Parameter in der URL vorhanden ist.
+    if (urlParams.get('edit') === '1') {
+      // Wenn wir im Bearbeitungsmodus sind, stoppe alle Timer und tue nichts weiter.
+      clearTimeout(this.idleTimer);
+      clearTimeout(this.debounceTimer);
+      return;
+    }
+
+    // Die normale Timer-Logik wird nur ausgeführt, wenn nicht im Bearbeitungsmodus.
     clearTimeout(this.idleTimer);
     clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => this.startIdleTimer(), 200);
   }
 
   startIdleTimer() {
+    // Vor dem Starten des Timers ebenfalls prüfen, um sicherzugehen.
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('edit') === '1') {
+      return;
+    }
     this.idleTimer = setTimeout(this.goHome, this.timeout * 1000);
   }
 
   goHome() {
+    const urlParams = new URLSearchParams(window.location.search);
+    // NEU: Doppelte Sicherheitsprüfung vor der eigentlichen Weiterleitung.
+    if (urlParams.get('edit') === '1') {
+      return;
+    }
+
     if (window.location.pathname !== this.redirect_path) {
       window.history.pushState(null, null, this.redirect_path);
       const navEvent = new CustomEvent("location-changed", {
@@ -101,4 +116,3 @@ window.customCards.push({
   preview: false,
   description: "A custom card that redirects to a specific page after a period of inactivity."
 });
-
