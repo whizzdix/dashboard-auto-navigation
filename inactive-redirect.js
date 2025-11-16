@@ -22,45 +22,49 @@ class InactiveRedirect extends LitElement {
 
     this.idleTimer = null;
     this.debounceTimer = null;
-    // 'wheel' und 'scroll' zur Liste der Events hinzugefügt
     this.events = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'wheel', 'scroll'];
 
     this.handleActivity = this.handleActivity.bind(this);
     this.goHome = this.goHome.bind(this);
-
-    this.events.forEach(event => {
-      window.addEventListener(event, this.handleActivity, { passive: true });
-    });
-
+    
+    // Die Event-Listener werden beim Initialisieren hinzugefügt.
+    this.addListeners();
     this.startIdleTimer();
+  }
+  
+  addListeners() {
+    this.events.forEach(event => {
+      // NEU: { capture: true } fängt das Event früh ab.
+      // { passive: true } verbessert die Performance, besonders bei scroll und touch.
+      window.addEventListener(event, this.handleActivity, { capture: true, passive: true });
+    });
+  }
+  
+  removeListeners() {
+    this.events.forEach(event => {
+      // Wichtig: Die Optionen beim Entfernen müssen mit denen beim Hinzufügen übereinstimmen.
+      window.removeEventListener(event, this.handleActivity, { capture: true, passive: true });
+    });
   }
 
   connectedCallback() {
     super.connectedCallback();
-    // Event-Listener beim Wiederverbinden neu starten
-    this.events.forEach(event => {
-      window.addEventListener(event, this.handleActivity, { passive: true });
-    });
+    // Sicherstellen, dass die Listener aktiv sind, wenn die Karte (wieder) ins DOM kommt.
+    this.removeListeners(); // Zuerst alte entfernen, um Duplikate zu vermeiden
+    this.addListeners();
     this.startIdleTimer();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    // Alle Timer und Event-Listener sauber entfernen
-    this.events.forEach(event => {
-      window.removeEventListener(event, this.handleActivity, true);
-    });
+    // Alle Timer und Event-Listener sauber entfernen, wenn die Karte das DOM verlässt.
+    this.removeListeners();
     clearTimeout(this.idleTimer);
     clearTimeout(this.debounceTimer);
   }
 
   handleActivity() {
-    // Den Haupt-Timeout bei jeder Aktivität sofort stoppen
     clearTimeout(this.idleTimer);
-
-    // Debounce-Logik: Starte den Haupt-Timeout erst,
-    // nachdem für 200ms keine neue Aktivität erkannt wurde.
-    // Dies verhindert, dass der Timer bei schnellen Events wie Scrollen ständig neu erstellt wird.
     clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => this.startIdleTimer(), 200);
   }
@@ -70,7 +74,6 @@ class InactiveRedirect extends LitElement {
   }
 
   goHome() {
-    // Prüfen, ob wir uns bereits auf der Zielseite befinden, um unnötige Navigation zu vermeiden
     if (window.location.pathname !== this.redirect_path) {
       window.history.pushState(null, null, this.redirect_path);
       const navEvent = new CustomEvent("location-changed", {
@@ -81,7 +84,6 @@ class InactiveRedirect extends LitElement {
   }
 
   render() {
-    // Diese Komponente hat keine sichtbare Oberfläche
     return html``;
   }
 
@@ -99,3 +101,4 @@ window.customCards.push({
   preview: false,
   description: "A custom card that redirects to a specific page after a period of inactivity."
 });
+
