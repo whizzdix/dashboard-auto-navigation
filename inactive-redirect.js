@@ -11,6 +11,28 @@ class InactiveRedirect extends LitElement {
     };
   }
 
+  setupEventListeners() {
+    if (!this._initialized) {
+      // pointerdown und pointermove sind performanter und auf modernen Browsern 
+      // (wie Fully Kiosk / Chrome) zuverlässiger für Touch und Maus.
+      this.events = ['touchstart', 'pointerdown', 'pointermove', 'keydown', 'wheel', 'scroll'];
+      this.handleActivity = this.handleActivity.bind(this);
+      this.goHome = this.goHome.bind(this);
+      this._initialized = true;
+    }
+  }
+
+  clearTimers() {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+  }
+
   setConfig(config) {
     this._config = config;
     this.timeout = this._config.timeout || 60;
@@ -20,15 +42,12 @@ class InactiveRedirect extends LitElement {
       throw new Error("You need to define a redirect_path");
     }
 
-    this.idleTimer = null;
-    this.debounceTimer = null;
-    this.events = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'wheel', 'scroll'];
+    this.setupEventListeners();
 
-    this.handleActivity = this.handleActivity.bind(this);
-    this.goHome = this.goHome.bind(this);
-    
-    this.addListeners();
-    this.startIdleTimer();
+    if (this.isConnected) {
+      // Wenn das Element im DOM ist und eine neue Konfiguration erhält
+      this.resetTimer();
+    }
   }
   
   addListeners() {
@@ -45,36 +64,35 @@ class InactiveRedirect extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    this.removeListeners(); 
+    this.setupEventListeners();
+    this.removeListeners(); // Zur Sicherheit alte entfernen, um Duplikate zu vermeiden
     this.addListeners();
-    this.startIdleTimer();
+    this.resetTimer();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeListeners();
-    clearTimeout(this.idleTimer);
-    clearTimeout(this.debounceTimer);
+    this.clearTimers();
   }
 
   handleActivity() {
     const urlParams = new URLSearchParams(window.location.search);
-    // NEU: Prüfen, ob der 'edit=1' Parameter in der URL vorhanden ist.
     if (urlParams.get('edit') === '1') {
-      // Wenn wir im Bearbeitungsmodus sind, stoppe alle Timer und tue nichts weiter.
-      clearTimeout(this.idleTimer);
-      clearTimeout(this.debounceTimer);
+      this.clearTimers();
       return;
     }
 
-    // Die normale Timer-Logik wird nur ausgeführt, wenn nicht im Bearbeitungsmodus.
-    clearTimeout(this.idleTimer);
-    clearTimeout(this.debounceTimer);
+    this.resetTimer();
+  }
+
+  resetTimer() {
+    this.clearTimers();
     this.debounceTimer = setTimeout(() => this.startIdleTimer(), 200);
   }
 
   startIdleTimer() {
-    // Vor dem Starten des Timers ebenfalls prüfen, um sicherzugehen.
+    this.clearTimers();
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('edit') === '1') {
       return;
@@ -84,7 +102,6 @@ class InactiveRedirect extends LitElement {
 
   goHome() {
     const urlParams = new URLSearchParams(window.location.search);
-    // NEU: Doppelte Sicherheitsprüfung vor der eigentlichen Weiterleitung.
     if (urlParams.get('edit') === '1') {
       return;
     }
